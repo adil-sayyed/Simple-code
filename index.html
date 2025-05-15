@@ -2,63 +2,93 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Media Capture</title>
+  <title>Media Capture - Video, Audio, Mic</title>
   <script defer>
     let mediaStream = null;
-    let mediaRecorder = null;
+    let audioRecorder = null;
     let audioChunks = [];
 
+    // Start video and mic
     async function startCamera() {
-      mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      document.getElementById('video').srcObject = mediaStream;
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        document.getElementById('video').srcObject = mediaStream;
+      } catch (err) {
+        alert("Error accessing camera/microphone: " + err.message);
+      }
     }
 
+    // Capture an image from the video
     function captureImage() {
-      const canvas = document.getElementById('canvas');
       const video = document.getElementById('video');
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-      canvas.getContext('2d').drawImage(video, 0, 0);
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     }
 
-    function startRecording() {
+    // Start recording audio only
+    function startAudioRecording() {
+      if (!mediaStream) {
+        alert("Start the camera first to access mic.");
+        return;
+      }
+
       audioChunks = [];
-      mediaRecorder = new MediaRecorder(mediaStream);
-      mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
-      mediaRecorder.onstop = () => {
+      const audioOnlyStream = new MediaStream(mediaStream.getAudioTracks());
+      audioRecorder = new MediaRecorder(audioOnlyStream);
+
+      audioRecorder.ondataavailable = event => {
+        if (event.data.size > 0) {
+          audioChunks.push(event.data);
+        }
+      };
+
+      audioRecorder.onstop = () => {
         const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
         const audioURL = URL.createObjectURL(audioBlob);
-        document.getElementById('audioPlayback').src = audioURL;
+        const audioElement = document.getElementById('audioPlayback');
+        audioElement.src = audioURL;
       };
-      mediaRecorder.start();
+
+      audioRecorder.start();
     }
 
-    function stopRecording() {
-      mediaRecorder.stop();
+    // Stop recording
+    function stopAudioRecording() {
+      if (audioRecorder && audioRecorder.state !== 'inactive') {
+        audioRecorder.stop();
+      }
     }
   </script>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4 space-y-6">
+<body class="bg-gray-100 min-h-screen p-6 flex flex-col items-center space-y-6">
 
-  <h1 class="text-2xl font-bold">Media Capture (Audio, Video, Mic)</h1>
+  <h1 class="text-2xl font-bold text-gray-800">🎙️ Media Capture - Camera, Audio & Mic</h1>
 
+  <!-- Video and controls -->
   <div class="space-y-4">
-    <video id="video" autoplay class="w-80 border-2 border-gray-300 rounded-lg shadow"></video>
-    <canvas id="canvas" class="w-80 border border-dashed border-gray-400 rounded"></canvas>
-    
+    <video id="video" autoplay playsinline class="w-80 border-2 border-gray-400 rounded-lg shadow"></video>
     <div class="flex space-x-4">
-      <button onclick="startCamera()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Start Camera</button>
-      <button onclick="captureImage()" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">Capture Image</button>
+      <button onclick="startCamera()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Start Camera</button>
+      <button onclick="captureImage()" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Capture Image</button>
     </div>
   </div>
 
-  <div class="space-y-2">
-    <div class="flex space-x-4">
-      <button onclick="startRecording()" class="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600">Start Audio Recording</button>
-      <button onclick="stopRecording()" class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">Stop Recording</button>
+  <!-- Image captured -->
+  <div>
+    <canvas id="canvas" class="w-80 border border-dashed border-gray-400 rounded shadow"></canvas>
+  </div>
+
+  <!-- Audio recording -->
+  <div class="space-y-2 text-center">
+    <div class="flex space-x-4 justify-center">
+      <button onclick="startAudioRecording()" class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">Start Audio Recording</button>
+      <button onclick="stopAudioRecording()" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">Stop Recording</button>
     </div>
-    <audio id="audioPlayback" controls class="w-80 mt-2"></audio>
+    <audio id="audioPlayback" controls class="w-80 mt-3"></audio>
   </div>
 
 </body>
